@@ -1,0 +1,72 @@
+{
+ "_status": "FROZEN analysis plan of the Real-IAD Variety holdout (revision plan stage C), 2026-11-10. Identical in substance to configs/holdout_plan_draft.json (sha256 1ef5003e...), with the two open choices confirmed by the user: the primary rule uses the reuse-aware CI, and the category-level margin is 3 AP points. Written after the 32 selected categories were fetched as bytes (camera 1; nothing decoded, no manifest, no map, no metric). Hashed with the selection files, the analysis code and the job scripts into configs/holdout_lock.json; the lock is timestamped publicly by the user before the holdout is opened, once. A failed outcome is reported as such; the holdout is not reused as a confirmation set.",
+ "data": {
+  "set": "Real-IAD Variety, 32 categories selected by configs/holdout_select_draft.json + holdout_select_amend1.json (holdout_meta/variety_selection.json), camera 1, raw resolution as distributed",
+  "strata": "absence = MissingPart; presence = every other defect class with a mask; defect-free test images kept for image-level scores; defective images without a mask excluded; images whose mask is empty at 256 excluded (gt_empty_eval)",
+  "training": "the 23-25 official training normals of camera 1 per category, nothing else",
+  "manifest": "code/build_manifest_variety.py, same row builder as the earlier sets (build_manifests.base_row / add_mask); refuses to run unless configs/holdout_lock.json exists, is frozen and every hashed file matches"
+ },
+ "localizers": {
+  "baselines": "the seven of the stage-1 lock with unchanged settings, seed and code (configs/baselines.json, run_baseline.py): PatchCore, RAD, SuperADD, Dinomaly, INP-Former, AnomalyVFM, WinCLIP",
+  "method": "MCM-eps exactly as configs/mcm_eps_final.json (k16, rho_t 0.1, rho_r 0.3, eps 0.01, 300 iterations, similarity registration) and the reverse NN recomputed on the same references; leave-one-out normals = all training normals of the category (fewer than the 64 of the earlier sets); fusions fixed: MCM-eps nm0.5q0.99, reverse NN nm0.4q0.99, onto the six bases used for MCM on every earlier set (all but WinCLIP)",
+  "no_tuning": "no setting is changed for the small training sets; a localizer that does poorly is handled by the competence floor"
+ },
+ "metric": "per-image pixel AP at 256 against the mask (as every earlier set); area by the mask at 256",
+ "primary": {
+  "H1_HO": {
+   "statistic": "within each category every absence image is paired with the presence image of nearest log area (with replacement, ties to the smaller path); matched gap = mean absence minus presence per-image AP",
+   "ci": "reuse-aware 95% CI (Abadie-Imbens variance with the nearest-other-control conditional variance, as Table 1); also the original pairs-fixed bootstrap (2000 resamples of absence images within category, seed 20261110)",
+   "cell": "competent if presence AP >= 20; supports if competent, gap < 0 and the reuse-aware CI upper bound < 0",
+   "rule": "passes if at least 4 cells are competent and at least ceil(2/3 x competent) support"
+  }
+ },
+ "secondary": {
+  "H1_HO_pairs_fixed": "the same rule with the pairs-fixed CI (the rule as preregistered for the earlier sets)",
+  "category_level": "per category, the matched gap averaged over the competent localizers (equal weight); over the 32 categories the mean with its t-interval (31 df); margin delta = 3 AP points: 'material deficit' if the upper bound < 0 and the mean <= -3; 'no material deficit' if the interval lies within (-3, +3); otherwise 'deficit not material at this precision' or 'inconclusive' as the interval decides",
+  "heterogeneity": "between-category SD, number of categories with a negative gap, forest plot (as figs/forest_categories)",
+  "MCM": "plug-in change of absence and presence AP (fused minus base, mean over the six bases) for MCM-eps and the reverse NN; verdict BETTER / COMPARABLE / WORSE at 1 point (presence 0.5) as on MVTec LOCO and Real-IAD; paired image-level bootstrap CI of the absence difference (seed 0, 2000); standalone M maps of both"
+ },
+ "sensitivity": [
+  "without the 9 categories flagged by S1 (shared name token)",
+  "without CharacterOmission images",
+  "caliper matching (partner within a factor 2 in area, else dropped) with the reuse-aware CI",
+  "per-localizer category forest"
+ ],
+ "not_evaluated": {
+  "joint_output": "24-25 defect-free test images per category leave 12-13 for calibration, too few for a per-category 95th-percentile threshold; not run",
+  "added_objects": "Real-IAD Variety has no counting or added-part class; the surplus map is not tested here; contaminant classes are not used as a substitute"
+ },
+ "failures": "a crashed run is repeated once with identical settings; a (localizer, category) still missing is reported; a cell is computed if at least 80% of its categories are present, otherwise it counts as competent and not supporting; nothing is rerun because of its result",
+ "predictions": {
+  "HO1": "H1_HO passes (reuse-aware CI). Basis: Real-IAD C1 passes 11 of 12 with either CI; C2 passes only pairs-fixed (3 of 6 reuse-aware); PatchCore, RAD, SuperADD and AnomalyVFM supported in both; Dinomaly and INP-Former weak on Real-IAD",
+  "HO2": "H1_HO_pairs_fixed passes",
+  "HO3": "category level: mean < 0 with t-interval upper bound < 0",
+  "HO4": "MCM-eps is COMPARABLE to the reverse NN; the paired absence difference lies within (-1, +1)",
+  "HO5": "the plug-in absence change is negative for both MCM-eps and the reverse NN (as on Real-IAD C1 and C2)"
+ },
+ "interpretation_fixed_in_advance": {
+  "HO1 holds": "the deficit generalizes to 32 unseen product categories at the image level, robust to control reuse; abstract and title stand",
+  "HO1 fails, HO2 holds": "the deficit appears in unseen categories at the original threshold but is not robust to control reuse, as for Real-IAD C2; the abstract says so",
+  "HO1 and HO2 fail": "the deficit does not generalize beyond the sets where it was found; the title and abstract are restricted to the studied sets (e.g. 'In the benchmarks studied, anomaly localizers miss ...') and the holdout result is stated in the abstract",
+  "HO3": "reported with its interval and the margin label; the image-level and category-level results are reported side by side whatever they show",
+  "HO4 or HO5 fail": "reported; the method claim stays restricted to what MVTec LOCO and Real-IAD showed"
+ },
+ "reporting": "every outcome above goes into the paper (one Results paragraph, Fig. 2 row, SI note with the tables) whatever it is; the lock hash and the public timestamp are cited",
+ "code": {
+  "manifest": "code/build_manifest_variety.py",
+  "gpu": [
+   "hpc/job_holdout_fast.sh",
+   "hpc/job_holdout_dinomaly.sh (PART a, b)",
+   "hpc/job_holdout_inp_mcm.sh",
+   "hpc/holdout_body.sh"
+  ],
+  "evaluation": [
+   "hpc/run_holdout_eval.sh",
+   "code/holdout_eval.py",
+   "code/holdout_fuse.py (mcm_fuse.py unchanged, dataset registered at run time)"
+  ],
+  "verdict": "code/holdout_report.py (writes results_holdout/holdout_verdict.json and paper_sr/tables/S_holdout.tex)",
+  "guard": "code/holdout_common.check_holdout_lock: manifest, evaluation, fusion and verdict refuse to run without the frozen, unchanged lock",
+  "tested": "end to end on synthetic images and maps (3 categories, real camera-1 lists) before the freeze"
+ }
+}
